@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Monitoring PLTS Off-Grid</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f3f4f6;
+      color: #1f2937;
+    }
+    #login-page {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(to right, #2563eb, #1e3a8a);
+    }
+    .login-box {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      width: 300px;
+      text-align: center;
+    }
+    .login-box h2 { margin-bottom: 20px; color: #2563eb; }
+    .login-box input {
+      width: 90%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .login-box button {
+      width: 100%;
+      padding: 10px;
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .login-box button:hover { background-color: #1d4ed8; }
+    header {
+      background-color: #2563eb;
+      color: white;
+      text-align: center;
+      padding: 20px 10px;
+      position: relative;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    #logout-btn {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      background-color: #ef4444;
+      border: none;
+      color: white;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #logout-btn:hover { background-color: #dc2626; }
+    main {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+    section {
+      background-color: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      transition: 0.2s;
+    }
+    section:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.983); }
+    h2 { border-bottom: 2px solid #2563eb; padding-bottom: 8px; margin-bottom: 15px; color: #1e40af; }
+    p { margin: 10px 0; font-size: 18px; }
+    span { font-weight: bold; color: #050505; }
+    footer {
+      background-color: #1e3a8a;
+      color: white;
+      text-align: center;
+      padding: 10px;
+      font-size: 14px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- === LOGIN PAGE === -->
+  <div id="login-page">
+    <div class="login-box">
+      <h2>Login PLTS</h2>
+      <input type="email" id="username" placeholder="Email" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <button onclick="login()">Masuk</button>
+      <p id="error-msg" style="color:red;"></p>
+    </div>
+  </div>
+
+  <!-- === MONITORING PAGE === -->
+  <div id="monitoring-page" style="display:none;">
+    <header>
+      <h1>Sistem Monitoring PLTS Off-Grid Desa Andalan, KLU</h1>
+      <p>Monitoring Panel, Baterai, dan Inverter</p>
+      <button id="logout-btn" onclick="logout()">Logout</button>
+      <p style="position:absolute; left:20px; top:15px;">👤 <span id="user-display"></span></p>
+    </header>
+
+    <main>
+      <section id="panel">
+        <h2>Data Panel Surya</h2>
+        <p>Tegangan Panel: <span id="tegangan-panel">0</span> V</p>
+        <p>Arus Panel: <span id="arus-panel">0</span> A</p>
+        <p>Suhu Panel: <span id="suhu-panel">0</span> °C</p>
+        <p>Daya Panel: <span id="daya-panel">0</span> W</p>
+      </section>
+
+      <section id="baterai">
+        <h2>Data Baterai</h2>
+        <p>Tegangan Baterai: <span id="tegangan-baterai">0</span> V</p>
+        <p>Arus Baterai: <span id="arus-baterai">0</span> A</p>
+        <p>Daya Baterai: <span id="daya-baterai">0</span> A</p>
+        <p>Status Baterai: <span id="status-baterai">Tidak terhubung</span></p>
+      </section>
+
+      <section id="inverter">
+        <h2>Data Inverter</h2>
+        <p>Tegangan AC: <span id="tegangan-ac">0</span> V</p>
+        <p>Arus AC: <span id="arus-ac">0</span> A</p>
+        <p>Daya: <span id="daya">0</span> W</p>
+        <p>Energi: <span id="energi">0</span> Wh</p>
+        <p>Faktor Daya: <span id="faktor-daya">0</span></p>
+        <p>Frekuensi: <span id="frekuensi">0</span> Hz</p>
+      </section>
+    </main>
+
+    <footer>
+      <p>&copy; 2025 Sistem Monitoring PLTS - Desa Andalan</p>
+    </footer>
+  </div>
+
+  <!-- === FIREBASE SDK (v9 MODULAR CDN) === -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, signOut } 
+    from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import { getDatabase, ref, onValue }
+    from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+
+  // Konfigurasi Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyDC-VX8lS2gxoQYZNwtmxmSV0RMIDr7d9E",
+    authDomain: "sistem-monitoring-plts-a-24b54.firebaseapp.com",
+    databaseURL: "https://sistem-monitoring-plts-a-24b54-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "sistem-monitoring-plts-a-24b54",
+    storageBucket: "sistem-monitoring-plts-a-24b54.firebasestorage.app",
+    messagingSenderId: "822244767122",
+    appId: "1:822244767122:web:6397a391c6876327b2fd4b",
+    measurementId: "G-VFL2H06DWK"
+  };
+
+  // Start Firebase
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
+
+    // === LOGIN FUNCTION ===
+    window.login = function () {
+      const email = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const error = document.getElementById("error-msg");
+
+      signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+          document.getElementById("login-page").style.display = "none";
+          document.getElementById("monitoring-page").style.display = "block";
+          document.getElementById("user-display").textContent = user.email;
+          localStorage.setItem("loggedIn", "true");
+          localStorage.setItem("currentUser", user.email);
+        })
+        .catch((e) => {
+          error.textContent = "Login gagal: " + e.message;
+        });
+    };
+
+    // === LOGOUT FUNCTION ===
+    window.logout = function () {
+      signOut(auth).then(() => {
+        localStorage.removeItem("loggedIn");
+        localStorage.removeItem("currentUser");
+        document.getElementById("login-page").style.display = "flex";
+        document.getElementById("monitoring-page").style.display = "none";
+      });
+    };
+
+    // === SAAT REFRESH CEK LOGIN ===
+    window.onload = function () {
+      const loggedIn = localStorage.getItem("loggedIn");
+      const currentUser = localStorage.getItem("currentUser");
+      if (loggedIn === "true") {
+        document.getElementById("login-page").style.display = "none";
+        document.getElementById("monitoring-page").style.display = "block";
+        document.getElementById("user-display").textContent = currentUser;
+      }
+    };
+
+    // === PEMBACAAN DATA REALTIME (dengan default 0) ===
+    const pltsRef = ref(db, "plts");
+    onValue(pltsRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      const panel = data.panel || {};
+      const baterai = data.baterai || {};
+      const inverter = data.inverter || {};
+
+      document.getElementById("tegangan-panel").textContent = (panel.tegangan || 0).toFixed(2);
+      document.getElementById("arus-panel").textContent = (panel.arus || 0).toFixed(2);
+      document.getElementById("daya-panel").textContent = (panel.daya || 0).toFixed(2);
+      document.getElementById("suhu-panel").textContent = (panel.suhu || 0).toFixed(1);
+
+      document.getElementById("tegangan-baterai").textContent = (baterai.tegangan || 0).toFixed(2);
+      document.getElementById("arus-baterai").textContent = (baterai.arus || 0).toFixed(2);
+      document.getElementById("daya-baterai").textContent = (baterai.daya || 0).toFixed(2);
+      document.getElementById("status-baterai").textContent = baterai.status || "Tidak terhubung";
+
+      document.getElementById("tegangan-ac").textContent = (inverter.teganganAC || 0).toFixed(1);
+      document.getElementById("arus-ac").textContent = (inverter.arusAC || 0).toFixed(2);
+      document.getElementById("daya").textContent = (inverter.daya || 0).toFixed(1);
+      document.getElementById("energi").textContent = (inverter.energi || 0).toFixed(1);
+      document.getElementById("faktor-daya").textContent = (inverter.faktorDaya || 0).toFixed(2);
+      document.getElementById("frekuensi").textContent = (inverter.frekuensi || 0).toFixed(1);
+    });
+  </script>
+</body>
+</html>
